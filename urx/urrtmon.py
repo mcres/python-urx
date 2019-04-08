@@ -8,7 +8,7 @@ import logging
 import socket
 import struct
 import time
-import threading
+from threading import Thread, Condition, Lock
 from copy import deepcopy
 
 import numpy as np
@@ -21,7 +21,7 @@ __credits__ = ["Morten Lind, Olivier Roulet-Dubonnet"]
 __license__ = "LGPLv3"
 
 
-class URRTMonitor(threading.Thread):
+class URRTMonitor(Thread):
 
     # Struct for revision of the UR controller giving 692 bytes
     rtstruct692 = struct.Struct('>d6d6d6d6d6d6d6d6d18d6d6d6dQ')
@@ -31,12 +31,12 @@ class URRTMonitor(threading.Thread):
     rtstruct540 = struct.Struct('>d6d6d6d6d6d6d6d6d18d')
 
     def __init__(self, urHost):
-        threading.Thread.__init__(self)
+        Thread.__init__(self)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.daemon = True
         self._stop_event = True
-        self._dataEvent = threading.Condition()
-        self._dataAccess = threading.Lock()
+        self._dataEvent = Condition()
+        self._dataAccess = Lock()
         self._rtSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._rtSock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self._urHost = urHost
@@ -51,10 +51,10 @@ class URRTMonitor(threading.Thread):
         self._last_ctrl_ts = 0
         # self._last_ts = 0
         self._buffering = False
-        self._buffer_lock = threading.Lock()
+        self._buffer_lock = Lock()
         self._buffer = []
         self._csys = None
-        self._csys_lock = threading.Lock()
+        self._csys_lock = Lock()
 
     def set_csys(self, csys):
         with self._csys_lock:
