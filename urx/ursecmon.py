@@ -4,7 +4,7 @@ This file contains 2 classes:
     - SecondaryMonitor, a class opening a socket to the robot and with methods to
             access data and send programs to the robot
 Both use data from the secondary port of the URRobot.
-Only the last connected socket on 3001 is the primary client !!!!
+Only the last connected socket on 30001 is the primary client !!!!
 So do not rely on it unless you know no other client is running (Hint the UR java interface is a client...)
 http://support.universal-robots.com/Technical/PrimaryAndSecondaryClientInterface
 """
@@ -269,7 +269,7 @@ class SecondaryMonitor(Thread):
             with self._prog_queue_lock:
                 self._prog_queue.append(data)
             data.condition.wait()
-            self.logger.debug("program sendt: %s", data)
+            self.logger.debug("program sent: %s", data)
 
     def run(self):
         """
