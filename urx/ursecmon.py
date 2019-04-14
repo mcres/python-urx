@@ -16,6 +16,7 @@ import struct
 import socket
 from copy import copy
 import time
+import csv
 
 __author__ = "Olivier Roulet-Dubonnet"
 __copyright__ = "Copyright 2011-2013, Sintef Raufoss Manufacturing"
@@ -250,6 +251,7 @@ class SecondaryMonitor(Thread):
         self.running = False  # True when robot is on and listening
         self._dataEvent = Condition()
         self.lastpacket_timestamp = 0
+        self.collect_data = False
 
         self.start()
         self.wait()  # make sure we got some data before someone calls us
@@ -294,6 +296,29 @@ class SecondaryMonitor(Thread):
             except ParsingException as ex:
                 self.logger.warning("Error parsing one packet from urrobot: %s", ex)
                 continue
+
+            if self.collect_data:
+                if (time.time() - self.starting_time >= self.collecting_time):
+                    self.logger.debug("Writing data row")
+                    tmprow=[time.strftime('%Y-%m-%d %H:%M:%S')]
+                    for categorie in self.fieldnames:
+                        if categorie in self._dict:
+                            with self._dictLock:
+                                for subcategorie in self.fieldnames[categorie]:
+                                    if subcategorie in self._dict[categorie]:
+                                        self.logger.debug("{}: {}".format(subcategorie,
+                                            self._dict[categorie][subcategorie]))
+                                        tmprow.append(self._dict[categorie][subcategorie])
+                                    else:
+                                        tmprow.append("nan")
+                        else:
+                            tmprow += ["nan"]*len(self.fieldnames[categorie])
+
+                    with open(self.file_path,'a') as f:
+                        writer = csv.writer(f, delimiter=',')
+                        writer.writerow(tmprow)
+                    
+                    self.starting_time = time.time()
 
             if "RobotModeData" not in self._dict:
                 self.logger.warning("Got a packet from robot without RobotModeData, strange ...")
@@ -428,6 +453,31 @@ class SecondaryMonitor(Thread):
             self.wait()
         with self._dictLock:
             return self._dict["RobotModeData"]["isProgramRunning"]
+
+    def set_data_saved(self, rate, fieldnames, file_path):
+        """
+        configure data to be saved into csv
+        collect_data: true is data is to be saved, false otherwise
+        rate: rate in Hz at which data is going to be collected
+        fieldnames: dictionary specifying what data should be saved
+        file_path: path to the .csv file
+        """
+
+        if rate>=1 and rate<5 and fieldnames:
+            self.collecting_time = 1/rate
+            self.file_path = file_path
+            self.fieldnames = fieldnames
+            all_names = ['date']
+            for categories in self.fieldnames:
+                all_names += self.fieldnames[categories]
+            with open(file_path,'w+', newline='') as f:
+                writer = csv.writer(f, delimiter=',')
+                writer.writerow(all_names)
+            self.logger.debug("Data collection initialized")
+            self.collect_data = True
+            self.starting_time = time.time()
+        else:
+            self.logger.warning("Rate should be between 1 Hz and 5 Hz")
 
     def close(self):
         self._trystop = True
