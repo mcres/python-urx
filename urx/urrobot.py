@@ -149,6 +149,12 @@ class URRobot(object):
             val = "False"
         self.send_program('digital_out[%s]=%s' % (output, val))
 
+    def set_data_saved(self, rate, fieldnames, file_path):
+        """
+        configure data to be saved into csv
+        """
+        self.secmon.set_data_saved(rate, fieldnames, file_path)
+
     def get_analog_inputs(self):
         """
         get analog input
