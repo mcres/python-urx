@@ -2,3 +2,4 @@ docs/_*
 build
 .idea/
 *.pyc
+.vscode/
